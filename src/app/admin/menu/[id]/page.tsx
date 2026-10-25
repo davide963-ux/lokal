@@ -53,7 +53,7 @@ export default async function EditDishPage({ params }: { params: Promise<{ id: s
       <PageHeader
         title={dish.name}
         description={dish.currentVersion ? `Version ${dish.currentVersion} · ${dish._count.studyProgress} study record${dish._count.studyProgress === 1 ? "" : "s"}` : "Not published yet"}
-        actions={<Badge variant={STATUS_BADGE[dish.status]}>{dish.status.toLowerCase()}</Badge>}
+        actions={<><Badge variant={STATUS_BADGE[dish.status]}>{dish.status.toLowerCase()}</Badge><Link href={`/admin/quizzes/${dish.id}`} className="text-sm font-medium text-primary hover:underline">Quiz →</Link></>}
       />
       <DishStatusBar dishId={dish.id} status={dish.status} verified={!!dish.allergensVerifiedAt} hasHistory={dish._count.studyProgress > 0} />
       <DishForm dishId={dish.id} status={dish.status} initial={initial} categories={categories} allergens={allergens}

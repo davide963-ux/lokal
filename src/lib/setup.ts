@@ -26,11 +26,11 @@ export const STANDARD_ALLERGENS = [
 /** Idempotent: creates the settings singleton and the standard allergen list if missing. */
 export async function ensureBaseData() {
   await db.restaurantSettings.upsert({ where: { singleton: true }, update: {}, create: { singleton: true } });
-  await db.$transaction(
-    STANDARD_ALLERGENS.map((name, i) =>
-      db.allergen.upsert({ where: { name }, update: {}, create: { name, sortOrder: i } }),
-    ),
-  );
+  // Sequential on purpose: each upsert is idempotent, so no transaction is needed, and awaiting one
+  // query at a time avoids pipelining queries on a single pg client (deprecated in pg 9).
+  for (const [i, name] of STANDARD_ALLERGENS.entries()) {
+    await db.allergen.upsert({ where: { name }, update: {}, create: { name, sortOrder: i } });
+  }
 }
 
 const adminInput = z.object({

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChefHat, Leaf, LayoutDashboard, Menu, Settings, UserCog, Users, X, type LucideIcon } from "lucide-react";
+import { ChefHat, ClipboardCheck, Leaf, LayoutDashboard, Menu, Settings, UserCog, Users, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/menu", label: "Menu", icon: ChefHat },
   { href: "/admin/ingredients", label: "Ingredients", icon: Leaf },
+  { href: "/admin/quizzes", label: "Quizzes", icon: ClipboardCheck },
   { href: "/admin/employees", label: "Employees", icon: Users },
   { href: "/admin/settings", label: "Settings", icon: Settings },
   { href: "/admin/account", label: "My account", icon: UserCog },

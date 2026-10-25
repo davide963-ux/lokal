@@ -18,9 +18,12 @@ import * as employees from "@/app/admin/employees/actions";
 import * as settings from "@/app/admin/settings/actions";
 import * as uploads from "@/app/admin/upload-actions";
 import * as account from "@/app/admin/account/actions";
+import * as quizzes from "@/app/admin/quizzes/actions";
+import * as learning from "@/app/employee/actions";
 
 const ID = "00000000-0000-4000-8000-000000000000";
-const ADMIN_ONLY = { ...menu, ...ingredients, ...employees, ...settings, ...uploads };
+const ADMIN_ONLY = { ...menu, ...ingredients, ...employees, ...settings, ...uploads, ...quizzes };
+const EMPLOYEE_ONLY = { ...learning };
 
 async function snapshotCounts() {
   return JSON.stringify({
@@ -42,7 +45,7 @@ describe("every admin server action enforces the ADMIN role on the server", () =
   const names = Object.keys(ADMIN_ONLY);
 
   it("covers a meaningful number of actions", () => {
-    expect(names.length).toBeGreaterThanOrEqual(24);
+    expect(names.length).toBeGreaterThanOrEqual(31);
   });
 
   it("anonymous callers are refused and nothing is written", async () => {
@@ -81,6 +84,25 @@ describe("every admin server action enforces the ADMIN role on the server", () =
     await db.user.update({ where: { id: admin.id }, data: { status: "INACTIVE" } });
     expect(await menu.createCategoryAction({ name: "Nope" })).toMatchObject({ ok: false });
     expect(await db.category.count()).toBe(1);
+  });
+});
+
+describe("every employee learning action enforces the EMPLOYEE role on the server", () => {
+  const call = (fn: unknown) => (fn as (...a: unknown[]) => Promise<{ ok: boolean; error?: string }>)(ID, {});
+  it("anonymous callers are refused", async () => {
+    for (const [name, fn] of Object.entries(EMPLOYEE_ONLY)) expect(await call(fn), name).toMatchObject({ ok: false, error: "Please sign in again." });
+  });
+  it("administrators cannot study dishes or take quizzes (no progress can be created under an admin id)", async () => {
+    const admin = await makeUser({ role: "ADMIN" });
+    mockSession = { user: { id: admin.id, role: "ADMIN", sessionVersion: admin.sessionVersion } };
+    for (const [name, fn] of Object.entries(EMPLOYEE_ONLY)) expect(await call(fn), name).toMatchObject({ ok: false, error: "Employee access required." });
+    expect(await db.dishStudyProgress.count()).toBe(0);
+    expect(await db.quizAttempt.count()).toBe(0);
+  });
+  it("employees cannot reach the quiz builder actions", async () => {
+    const emp = await makeUser();
+    mockSession = { user: { id: emp.id, role: "EMPLOYEE", sessionVersion: emp.sessionVersion } };
+    expect(await quizzes.publishQuizAction(ID)).toMatchObject({ ok: false, error: "Administrator access required." });
   });
 });
 
