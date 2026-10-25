@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { requireAdminPage } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { EmployeeEditor } from "./employee-editor";
+import { EmployeeTraining } from "./employee-training";
+import { getEmployeeReport } from "@/lib/services/reports";
 
 export const metadata = { title: "Employee" };
 const VARIANT = { ACTIVE: "success", INVITED: "warning", INACTIVE: "neutral" } as const;
@@ -21,6 +23,8 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
       <Link href="/admin/employees" className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" />Employees</Link>
       <PageHeader title={user.name} description={`Added ${user.createdAt.toLocaleDateString()}${user.lastLoginAt ? ` · last signed in ${user.lastLoginAt.toLocaleString()}` : " · has not signed in yet"}`}
         actions={<Badge variant={VARIANT[user.status]}>{user.status === "INACTIVE" ? "deactivated" : user.status.toLowerCase()}</Badge>} />
+      <EmployeeTraining report={await getEmployeeReport(user.id)} />
+      <h2 className="mb-3 mt-10 text-xl font-semibold">Account</h2>
       <EmployeeEditor id={user.id} status={user.status} initial={{ name: user.name, email: user.email, jobTitle: user.jobTitle ?? "", phone: user.phone ?? "" }} />
     </>
   );

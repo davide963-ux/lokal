@@ -1,41 +1,64 @@
 import { db } from "@/lib/db";
 import { DomainError } from "@/lib/errors";
-import { computeDishStatus, type DishStatus } from "@/lib/training/status";
+import { computeDishStatus, type DishStatus, type DishStatusInput } from "@/lib/training/status";
 import type { DishSnapshot } from "./dish-snapshot";
 import { notifyAdmins } from "./notifications";
 
-/** Loads training status for the given user across the given published dishes (batched, 4 queries). */
-export async function loadStatuses(userId: string, dishIds: string[]): Promise<Map<string, DishStatus>> {
-  if (dishIds.length === 0) return new Map();
+export type DishTrainingData = {
+  input: DishStatusInput;
+  /** Every acknowledgement by this employee (any revision), newest last. */
+  studies: { version: number; studiedAt: Date }[];
+};
+
+/**
+ * Loads raw training facts for many employees × dishes in a fixed number of queries (5),
+ * independent of team size. Everything that decides "where does X stand" goes through
+ * computeDishStatus on this data, so the employee app and manager reports can never disagree.
+ */
+export async function loadTrainingData(userIds: string[], dishIds: string[]): Promise<Map<string, Map<string, DishTrainingData>>> {
+  const out = new Map<string, Map<string, DishTrainingData>>();
+  if (userIds.length === 0 || dishIds.length === 0) return out;
   const [revisions, studies, quizzes, attempts] = await Promise.all([
     db.dishRevision.findMany({ where: { dishId: { in: dishIds } }, select: { dishId: true, version: true, requiresRetraining: true } }),
-    db.dishStudyProgress.findMany({ where: { userId, dishId: { in: dishIds } }, select: { dishId: true, dishRevision: { select: { version: true } } } }),
-    db.quiz.findMany({ where: { dishId: { in: dishIds }, status: "PUBLISHED" }, select: { id: true, dishId: true, allowRetries: true } }),
+    db.dishStudyProgress.findMany({ where: { userId: { in: userIds }, dishId: { in: dishIds } }, select: { userId: true, dishId: true, studiedAt: true, dishRevision: { select: { version: true } } }, orderBy: { studiedAt: "asc" } }),
+    db.quiz.findMany({ where: { dishId: { in: dishIds }, status: "PUBLISHED" }, select: { dishId: true, allowRetries: true } }),
     db.quizAttempt.findMany({
-      where: { userId, status: "SUBMITTED", quiz: { dishId: { in: dishIds } } },
-      select: { score: true, passed: true, submittedAt: true, quiz: { select: { dishId: true } }, dishRevision: { select: { version: true } } },
+      where: { userId: { in: userIds }, status: "SUBMITTED", quiz: { dishId: { in: dishIds } } },
+      select: { userId: true, score: true, passed: true, submittedAt: true, quiz: { select: { dishId: true } }, dishRevision: { select: { version: true } } },
     }),
   ]);
-  const by = <T extends { dishId: string }>(rows: T[]) => {
-    const m = new Map<string, T[]>();
-    for (const r of rows) (m.get(r.dishId) ?? m.set(r.dishId, []).get(r.dishId)!).push(r);
-    return m;
-  };
-  const revBy = by(revisions), studyBy = by(studies), quizBy = new Map(quizzes.map((q) => [q.dishId, q]));
+  const revBy = new Map<string, { version: number; requiresRetraining: boolean }[]>();
+  for (const r of revisions) (revBy.get(r.dishId) ?? revBy.set(r.dishId, []).get(r.dishId)!).push(r);
+  const quizBy = new Map(quizzes.map((q) => [q.dishId, { allowRetries: q.allowRetries }]));
+  const key = (u: string, d: string) => `${u}|${d}`;
+  const studyBy = new Map<string, typeof studies>();
+  for (const x of studies) (studyBy.get(key(x.userId, x.dishId)) ?? studyBy.set(key(x.userId, x.dishId), []).get(key(x.userId, x.dishId))!).push(x);
   const attBy = new Map<string, typeof attempts>();
-  for (const a of attempts) (attBy.get(a.quiz.dishId) ?? attBy.set(a.quiz.dishId, []).get(a.quiz.dishId)!).push(a);
+  for (const x of attempts) (attBy.get(key(x.userId, x.quiz.dishId)) ?? attBy.set(key(x.userId, x.quiz.dishId), []).get(key(x.userId, x.quiz.dishId))!).push(x);
 
-  return new Map(
-    dishIds.map((id) => [
-      id,
-      computeDishStatus({
-        revisions: revBy.get(id) ?? [],
-        studiedVersions: (studyBy.get(id) ?? []).map((s) => s.dishRevision.version),
-        quiz: quizBy.get(id) ? { allowRetries: quizBy.get(id)!.allowRetries } : null,
-        attempts: (attBy.get(id) ?? []).map((a) => ({ score: a.score!, passed: a.passed!, dishVersion: a.dishRevision.version, submittedAt: a.submittedAt! })),
-      }),
-    ]),
-  );
+  for (const u of userIds) {
+    const perDish = new Map<string, DishTrainingData>();
+    for (const d of dishIds) {
+      const st = studyBy.get(key(u, d)) ?? [];
+      perDish.set(d, {
+        studies: st.map((x) => ({ version: x.dishRevision.version, studiedAt: x.studiedAt })),
+        input: {
+          revisions: revBy.get(d) ?? [],
+          studiedVersions: st.map((x) => x.dishRevision.version),
+          quiz: quizBy.get(d) ?? null,
+          attempts: (attBy.get(key(u, d)) ?? []).map((a) => ({ score: a.score!, passed: a.passed!, dishVersion: a.dishRevision.version, submittedAt: a.submittedAt! })),
+        },
+      });
+    }
+    out.set(u, perDish);
+  }
+  return out;
+}
+
+/** Training status for one employee across the given dishes. */
+export async function loadStatuses(userId: string, dishIds: string[]): Promise<Map<string, DishStatus>> {
+  const data = (await loadTrainingData([userId], dishIds)).get(userId);
+  return new Map(dishIds.map((id) => [id, computeDishStatus(data!.get(id)!.input)]));
 }
 
 /** Employees only ever see PUBLISHED dishes; anything else reads as "not found". */

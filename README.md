@@ -15,8 +15,8 @@ Stack: Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS 4 · Prism
 | 1 | Foundation: schema, auth, roles, admin bootstrap | ✅ done |
 | 2 | Admin: settings, categories, ingredients/allergens, dishes + revisions, photos, employees | ✅ done |
 | 3 | Learning: employee dashboard, dish pages, study acknowledgement, quiz builder, quiz taking + server-side grading, results history | ✅ done |
-| 4 | Tracking: manager performance dashboard + CSV, notifications UI (retraining rules already enforced) | ⏳ next |
-| 5 | Production hardening and deployment polish | ⏳ |
+| 4 | Tracking: manager dashboard + team/attempt reports with filters, employee detail, CSV export, notifications UI | ✅ done |
+| 5 | Production hardening and deployment polish | ⏳ next |
 
 The database schema already contains the tables for all phases (quizzes, attempts, study progress, notifications).
 

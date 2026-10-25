@@ -22,3 +22,22 @@ export async function notifyAdmins(p: Payload, client: Client = db) {
   const users = await client.user.findMany({ where: { role: "ADMIN", status: "ACTIVE" }, select: { id: true } });
   return notifyUsers(users.map((u) => u.id), p, client);
 }
+
+// ───────── Reading (always scoped to the signed-in user) ─────────
+
+export async function listNotifications(userId: string, limit = 50) {
+  return db.notification.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: limit });
+}
+
+export function unreadCount(userId: string) {
+  return db.notification.count({ where: { userId, isRead: false } });
+}
+
+/** `userId` in the WHERE clause means nobody can mark (or probe) someone else's notifications. */
+export async function markRead(userId: string, id: string) {
+  await db.notification.updateMany({ where: { id, userId, isRead: false }, data: { isRead: true } });
+}
+
+export async function markAllRead(userId: string) {
+  await db.notification.updateMany({ where: { userId, isRead: false }, data: { isRead: true } });
+}
