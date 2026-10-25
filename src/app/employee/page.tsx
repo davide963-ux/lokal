@@ -44,7 +44,7 @@ export default async function EmployeeHome() {
             <div><p className="text-sm text-muted-foreground">Training progress</p><p className="font-display text-5xl font-semibold tracking-tight">{p.completionPercent}%</p></div>
             {p.averageScore !== null && <div className="text-right"><p className="text-sm text-muted-foreground">Average score</p><p className="text-2xl font-semibold">{p.averageScore}%</p></div>}
           </div>
-          <Progress value={p.completionPercent} className="mt-4 h-3" />
+          <Progress label="Your training progress" value={p.completionPercent} className="mt-4 h-3" />
           <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             <div><dt className="text-muted-foreground">Dishes studied</dt><dd className="text-lg font-semibold">{p.studied} <span className="text-sm font-normal text-muted-foreground">of {p.totalDishes}</span></dd></div>
             <div><dt className="text-muted-foreground">Quizzes completed</dt><dd className="text-lg font-semibold">{p.quizzesCompleted} <span className="text-sm font-normal text-muted-foreground">of {p.quizzesAvailable}</span></dd></div>

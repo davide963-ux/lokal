@@ -9,7 +9,7 @@
   --card: #ffffff;
   --card-foreground: #1f2528;
   --muted: #eeece6;
-  --muted-foreground: #667075;
+  --muted-foreground: #5e686c;
   --border: #e3e0d8;
   --input: #d9d5ca;
   --primary: #1f6f54;
@@ -18,9 +18,9 @@
   --primary-soft: #e4f1ea;
   --destructive: #b42318;
   --destructive-soft: #fdecea;
-  --warning: #b45309;
+  --warning: #a54c08;
   --warning-soft: #fef3e2;
-  --success: #1f7a4d;
+  --success: #1d7549;
   --success-soft: #e4f4ea;
   --ring: #1f6f54;
   --radius: 0.875rem;
@@ -64,10 +64,22 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    overflow-wrap: break-word;
     min-height: 100dvh;
   }
   h1, h2, h3 {
     @apply font-display tracking-tight;
+    /* user-supplied names/emails have no break opportunities; never let them widen the page */
+    overflow-wrap: anywhere;
+  }
+  /* A grid with no explicit columns gets an `auto` track that grows to its widest unbreakable child
+     (a long name, a button row) and stretches the whole page on phones. Default to one shrinkable
+     column and let items shrink; grid-cols-* utilities still override this. */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .grid > * {
+    min-width: 0;
   }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;

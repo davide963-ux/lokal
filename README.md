@@ -16,7 +16,7 @@ Stack: Next.js 16 (App Router) · TypeScript (strict) · Tailwind CSS 4 · Prism
 | 2 | Admin: settings, categories, ingredients/allergens, dishes + revisions, photos, employees | ✅ done |
 | 3 | Learning: employee dashboard, dish pages, study acknowledgement, quiz builder, quiz taking + server-side grading, results history | ✅ done |
 | 4 | Tracking: manager dashboard + team/attempt reports with filters, employee detail, CSV export, notifications UI | ✅ done |
-| 5 | Production hardening and deployment polish | ⏳ next |
+| 5 | Production hardening: error handling, CSP, env validation, health + cleanup jobs, accessibility audit, CI, deployment docs | ✅ done |
 
 The database schema already contains the tables for all phases (quizzes, attempts, study progress, notifications).
 
@@ -45,10 +45,19 @@ upload button explains that storage is not configured. No files are ever written
 | `npm run typecheck` / `lint` | `tsc --noEmit` / ESLint |
 | `npm run db:migrate` / `db:deploy` | Create+apply (dev) / apply only (production) migrations |
 | `npm run setup:admin` | Create an administrator |
+| `npm run admin:reset-password` | Recover a manager account (operator, database access required) |
+| `npm run audit:pages` | Crawl every page at 320–1280 px for overflow, console/CSP errors and WCAG A/AA violations (needs Playwright + a running seeded build) |
 
 Tests: create the database once (`createdb lokal_test`); migrations are applied automatically by the test runner.
 
+## Documentation
+
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): step-by-step Vercel + PostgreSQL runbook, env vars, go-live checklist, operations, troubleshooting
+- [`docs/SECURITY.md`](docs/SECURITY.md): what is enforced, where, which test covers it, and known limitations
+
 ## Deploying to Vercel (per restaurant)
+
+Short version (full runbook in `docs/DEPLOYMENT.md`):
 
 1. Create a managed PostgreSQL database (Neon, Vercel Postgres, Supabase, …). Copy both connection strings:
    the **pooled** one (`DATABASE_URL`, used by the running app) and the **direct** one (`DIRECT_URL`, used only for migrations).

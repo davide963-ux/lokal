@@ -63,7 +63,7 @@ async function TeamTab({ sp, categories, dishes }: { sp: Awaited<SP>; categories
       {rows.length === 0 ? (
         <EmptyState icon={Users} title={filtering ? "No employees match" : "No active employees yet"} description={filtering ? "Try clearing the filters." : "Add employees and publish dishes to see training results here."} />
       ) : (
-        <Card className="overflow-x-auto">
+        <Card className="overflow-x-auto" tabIndex={0} role="region" aria-label="Team results table (scrolls sideways on small screens)">
           <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr><th className="px-4 py-3 font-medium">Employee</th><th className="px-3 py-3 font-medium">Studied</th><th className="px-3 py-3 font-medium">Passed</th><th className="px-3 py-3 font-medium">Avg score</th><th className="w-44 px-4 py-3 font-medium">Completion</th></tr>
@@ -81,7 +81,7 @@ async function TeamTab({ sp, categories, dishes }: { sp: Awaited<SP>; categories
                   <td className="px-3 py-3 tabular-nums">{r.studied}/{r.totalDishes}</td>
                   <td className="px-3 py-3 tabular-nums">{r.passed}</td>
                   <td className="px-3 py-3 tabular-nums">{r.averageScore === null ? <span className="text-muted-foreground">–</span> : `${r.averageScore}%`}</td>
-                  <td className="px-4 py-3"><div className="flex items-center gap-2"><Progress value={r.completionPercent} tone={r.completionPercent >= 80 ? "primary" : r.completionPercent >= 40 ? "warning" : "danger"} className="flex-1" /><span className="w-10 text-right tabular-nums">{r.completionPercent}%</span></div></td>
+                  <td className="px-4 py-3"><div className="flex items-center gap-2"><Progress label={`${r.name} completion`} value={r.completionPercent} tone={r.completionPercent >= 80 ? "primary" : r.completionPercent >= 40 ? "warning" : "danger"} className="flex-1" /><span className="w-10 text-right tabular-nums">{r.completionPercent}%</span></div></td>
                 </tr>
               ))}
             </tbody>
@@ -110,7 +110,7 @@ async function AttemptsTab({ sp, categories, dishes, employees }: { sp: Awaited<
           <Button asChild variant="secondary" className="ml-auto"><a href={`/admin/results/export?${qs({ type: "attempts", ...f.raw })}`}><Download />Export CSV</a></Button></div>
       </form>
       {attempts.length === 0 ? <EmptyState icon={Users} title="No quiz attempts" description={filtering ? "Nothing matches these filters." : "Submitted quizzes will be listed here."} /> : (
-        <Card className="overflow-x-auto">
+        <Card className="overflow-x-auto" tabIndex={0} role="region" aria-label="Quiz attempts table (scrolls sideways on small screens)">
           <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-4 py-3 font-medium">When</th><th className="px-3 py-3 font-medium">Employee</th><th className="px-3 py-3 font-medium">Dish</th><th className="px-3 py-3 font-medium">Score</th><th className="px-4 py-3 font-medium">Result</th></tr></thead>
             <tbody className="divide-y divide-border">

@@ -52,7 +52,7 @@ export function ImageUpload({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={value} alt="" className="size-full object-cover" />
         ) : (
-          <button type="button" onClick={() => input.current?.click()} disabled={busy}
+          <button type="button" onClick={() => input.current?.click()} disabled={busy} aria-label={label}
             className="flex size-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             <ImagePlus className="size-6" />{shape === "wide" && <span>{label}</span>}
           </button>

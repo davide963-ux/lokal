@@ -7,7 +7,8 @@ import { authConfig } from "@/auth.config";
 // the database via src/lib/authz.ts.
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PREFIXES = ["/login", "/set-password", "/api/auth"];
+// /api/health is for monitors; /api/cron/* authenticates itself with CRON_SECRET (bearer token).
+const PUBLIC_PREFIXES = ["/login", "/set-password", "/api/auth", "/api/health", "/api/cron"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

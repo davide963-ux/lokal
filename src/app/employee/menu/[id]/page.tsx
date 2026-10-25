@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, ArrowLeft, ChefHat, Clock, Flame, MessageSquareQuote, ShieldAlert, Thermometer, Utensils } from "lucide-react";
@@ -53,8 +54,7 @@ export default async function DishTrainingPage({ params }: { params: Promise<{ i
       {/* Hero */}
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         {s.imageUrl
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={s.imageUrl} alt={s.name} className="aspect-[4/3] w-full object-cover" />
+          ? <Image src={s.imageUrl} alt={s.name} width={900} height={675} priority sizes="(min-width: 768px) 768px, 100vw" className="aspect-[4/3] w-full object-cover" />
           : <div className="flex aspect-[16/9] w-full items-center justify-center bg-muted text-muted-foreground"><ChefHat className="size-14" /></div>}
         <div className="p-5">
           <p className="text-sm text-muted-foreground">{s.category}</p>

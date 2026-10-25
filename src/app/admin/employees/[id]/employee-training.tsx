@@ -20,7 +20,7 @@ export function EmployeeTraining({ report }: { report: Report }) {
             <div><p className="text-sm text-muted-foreground">Training completion</p><p className="font-display text-5xl font-semibold tracking-tight">{s.completionPercent}%</p></div>
             <Button asChild variant="secondary" size="sm"><a href={`/admin/results/export?type=attempts&employee=${report.user.id}`}><Download />Export attempts CSV</a></Button>
           </div>
-          <Progress value={s.completionPercent} className="mt-4 h-3" />
+          <Progress label={`${report.user.name} training completion`} value={s.completionPercent} className="mt-4 h-3" />
           <dl className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
             <div><dt className="text-muted-foreground">Dishes studied</dt><dd className="text-xl font-semibold">{s.studied}<span className="text-sm font-normal text-muted-foreground"> / {s.totalDishes}</span></dd></div>
             <div><dt className="text-muted-foreground">Quizzes passed</dt><dd className="text-xl font-semibold text-success">{s.passed}<span className="text-sm font-normal text-muted-foreground"> / {s.quizzesAvailable}</span></dd></div>
@@ -42,7 +42,7 @@ export function EmployeeTraining({ report }: { report: Report }) {
 
       <Card>
         <CardHeader><CardTitle>Dishes</CardTitle></CardHeader>
-        <CardContent className="overflow-x-auto p-0">
+        <CardContent className="overflow-x-auto p-0" tabIndex={0} role="region" aria-label="Dishes table (scrolls sideways on small screens)">
           {rows.length === 0 ? <p className="px-5 pb-5 text-sm text-muted-foreground">No published dishes yet.</p> : (
             <table className="w-full min-w-[620px] text-sm">
               <thead className="border-y border-border text-left text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-5 py-2.5 font-medium">Dish</th><th className="px-3 py-2.5 font-medium">Status</th><th className="px-3 py-2.5 font-medium">Studied</th><th className="px-3 py-2.5 font-medium">Last score</th><th className="px-5 py-2.5 font-medium">Completed</th></tr></thead>

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ChefHat } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +12,7 @@ export function DishCard({ dish }: {
   return (
     <Link href={`/employee/menu/${dish.id}`} className="group flex gap-3 rounded-lg border border-border bg-card p-3 shadow-card transition-all active:scale-[0.99]">
       {dish.imageUrl
-        // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={dish.imageUrl} alt="" loading="lazy" className="size-24 shrink-0 rounded-md object-cover" />
+        ? <Image src={dish.imageUrl} alt="" width={96} height={96} sizes="96px" className="size-24 shrink-0 rounded-md object-cover" />
         : <div className="flex size-24 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><ChefHat className="size-8" /></div>}
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="text-xs text-muted-foreground">{dish.category.name}</p>

@@ -77,7 +77,7 @@ export default async function AdminDashboard() {
             <div><p className="text-sm text-muted-foreground">Overall training completion</p><p className="font-display text-4xl font-semibold tracking-tight">{team.totals.completionPercent}%</p></div>
             <Button asChild variant="secondary" size="sm"><Link href="/admin/results">Full results</Link></Button>
           </div>
-          <Progress value={team.totals.completionPercent} className="mt-3 h-3" />
+          <Progress label="Overall training completion" value={team.totals.completionPercent} className="mt-3 h-3" />
           <p className="mt-2 text-xs text-muted-foreground">Share of (employee × dish) pairs that are studied and, where a quiz exists, passed on the current version.</p>
         </CardContent>
       </Card>

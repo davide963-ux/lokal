@@ -56,3 +56,20 @@ export async function createAdminUser(input: { name: string; email: string; pass
     select: { id: true, email: true, name: true },
   });
 }
+
+/**
+ * Operator recovery path (no email flow exists for managers): sets a new password for an existing
+ * ADMIN and signs them out everywhere. Only reachable with database access, via scripts/reset-admin-password.ts.
+ */
+export async function resetAdminPassword(emailRaw: string, password: string) {
+  const email = normalizeEmail(z.string().trim().email().parse(emailRaw));
+  const parsed = passwordSchema.parse(password);
+  const user = await db.user.findUnique({ where: { email } });
+  if (!user || user.role !== "ADMIN") throw new Error(`No administrator with email ${email}.`);
+  await db.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await hashPassword(parsed), status: "ACTIVE", sessionVersion: { increment: 1 } },
+  });
+  await db.authToken.deleteMany({ where: { userId: user.id } });
+  return { id: user.id, email };
+}

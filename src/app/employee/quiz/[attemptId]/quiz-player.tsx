@@ -69,7 +69,7 @@ export function QuizPlayer({ attemptId, dishId, dishName, quizTitle, questions }
           </div>
           <p className="text-xs text-muted-foreground">{answered}/{total} answered</p>
         </div>
-        <Progress value={((reviewing ? total : index) / total) * 100} className="mx-auto mt-3 max-w-2xl" />
+        <Progress label="Quiz progress" value={((reviewing ? total : index) / total) * 100} className="mx-auto mt-3 max-w-2xl" />
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto px-4 py-6">
