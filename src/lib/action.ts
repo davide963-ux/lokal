@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 import { ForbiddenError } from "@/lib/authz";
+import { DomainError } from "@/lib/errors";
 
 export type FieldErrors = Record<string, string[] | undefined>;
 
@@ -28,7 +29,7 @@ export async function runAction<T>(fn: () => Promise<ActionResult<T>>): Promise<
   try {
     return await fn();
   } catch (err) {
-    if (err instanceof ForbiddenError) return fail(err.message);
+    if (err instanceof ForbiddenError || err instanceof DomainError) return fail(err.message);
     if (err instanceof ZodError) return fail("Please fix the highlighted fields.", zodFieldErrors(err));
     // Next.js control-flow errors (redirect/notFound) must propagate.
     if (err instanceof Error && "digest" in err && typeof (err as { digest?: unknown }).digest === "string") throw err;

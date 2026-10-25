@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Menu, X, type LucideIcon } from "lucide-react";
+import { ChefHat, Leaf, LayoutDashboard, Menu, Settings, UserCog, Users, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,11 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 // Items are added here as their pages ship; every entry must resolve to a real page.
 export const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/menu", label: "Menu", icon: ChefHat },
+  { href: "/admin/ingredients", label: "Ingredients", icon: Leaf },
+  { href: "/admin/employees", label: "Employees", icon: Users },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin/account", label: "My account", icon: UserCog },
 ];
 
 function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {

@@ -25,3 +25,11 @@ export async function makeUser(
     },
   });
 }
+
+export async function makeCategory(name = "Pasta") {
+  return db.category.upsert({ where: { name }, update: {}, create: { name } });
+}
+
+export async function makeAllergen(name = "Eggs") {
+  return db.allergen.upsert({ where: { name }, update: {}, create: { name } });
+}
