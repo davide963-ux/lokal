@@ -33,6 +33,7 @@ and which automated test covers it. If a control has no test listed, treat it as
 | Browser hardening | CSP (self + project Blob for images, no framing, no plugins, `form-action 'self'`), HSTS, `nosniff`, `X-Frame-Options: DENY`, restrictive Permissions-Policy, `noindex` | `next.config.ts` | audit crawl (no CSP violations) |
 | Configuration | Startup validation of `DATABASE_URL`, `AUTH_SECRET` (≥32 chars); production refuses to start on bad critical config | `lib/env.ts`, `instrumentation.ts` | `hardening.test.ts` |
 | Secrets | Only environment variables; `.env*` git-ignored; `.env.example` has no values | `.gitignore` | CI secret-free |
+| First-run setup | `/setup` exists only when `SETUP_TOKEN` (24+ chars) is configured and no manager exists; constant-time token check, per-IP rate limit, advisory lock so concurrent submissions create exactly one manager | `lib/setup.ts`, `app/(auth)/setup` | `first-run-setup.test.ts` |
 | Maintenance endpoint | Closed unless `CRON_SECRET` is set; constant-time bearer comparison | `api/cron/cleanup` | `hardening.test.ts` |
 | Dependencies | `npm audit` clean (nested `zod` pinned through `overrides`); CI fails on high severity | `package.json`, `.github/workflows/ci.yml` | CI |
 | Data integrity | FK constraints, uniqueness, check constraints (settings singleton, score ranges, attempt consistency), transactions for multi-step writes | `prisma/migrations` | all DB tests |

@@ -11,7 +11,7 @@ import type { z } from "zod";
 export async function updateSettingsAction(input: z.input<typeof settingsInput>): Promise<ActionResult> {
   return runAction(async () => {
     await assertAdmin();
-    const before = await db.restaurantSettings.findUnique({ where: { singleton: true }, select: { logoUrl: true } });
+    const before = await db.restaurantSettings.findFirst({ where: { singleton: true }, select: { logoUrl: true } });
     const saved = await updateSettings(input);
     if (before?.logoUrl && before.logoUrl !== saved.logoUrl) await deleteImage(before.logoUrl);
     revalidatePath("/", "layout");

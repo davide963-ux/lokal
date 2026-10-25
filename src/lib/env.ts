@@ -6,6 +6,7 @@ const schema = z.object({
   AUTH_URL: z.string().url("AUTH_URL must be a full URL such as https://your-app.vercel.app").optional(),
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
   CRON_SECRET: z.string().min(16, "CRON_SECRET must be at least 16 characters").optional(),
+  SETUP_TOKEN: z.string().min(24, "SETUP_TOKEN must be at least 24 characters (or remove it)").optional(),
 });
 
 export type EnvReport = { errors: string[]; warnings: string[] };
@@ -19,6 +20,7 @@ export function checkEnv(env: Record<string, string | undefined>, production: bo
     AUTH_URL: blank(env.AUTH_URL),
     BLOB_READ_WRITE_TOKEN: blank(env.BLOB_READ_WRITE_TOKEN),
     CRON_SECRET: blank(env.CRON_SECRET),
+    SETUP_TOKEN: blank(env.SETUP_TOKEN),
   });
   const errors = parsed.success ? [] : parsed.error.issues.map((i) => `${String(i.path[0])}: ${i.message}`);
   const warnings: string[] = [];

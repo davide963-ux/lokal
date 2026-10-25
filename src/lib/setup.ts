@@ -1,4 +1,6 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
+import { getOrCreateSettings } from "@/lib/services/settings";
 import { hashPassword, passwordSchema } from "@/lib/password";
 import { normalizeEmail } from "@/lib/utils";
 import { z } from "zod";
@@ -25,12 +27,9 @@ export const STANDARD_ALLERGENS = [
 
 /** Idempotent: creates the settings singleton and the standard allergen list if missing. */
 export async function ensureBaseData() {
-  await db.restaurantSettings.upsert({ where: { singleton: true }, update: {}, create: { singleton: true } });
-  // Sequential on purpose: each upsert is idempotent, so no transaction is needed, and awaiting one
-  // query at a time avoids pipelining queries on a single pg client (deprecated in pg 9).
-  for (const [i, name] of STANDARD_ALLERGENS.entries()) {
-    await db.allergen.upsert({ where: { name }, update: {}, create: { name, sortOrder: i } });
-  }
+  await getOrCreateSettings();
+  // Sequential + ON CONFLICT DO NOTHING: idempotent and safe if two setups run at once.
+  await db.allergen.createMany({ data: STANDARD_ALLERGENS.map((name, i) => ({ name, sortOrder: i })), skipDuplicates: true });
 }
 
 const adminInput = z.object({
@@ -72,4 +71,48 @@ export async function resetAdminPassword(emailRaw: string, password: string) {
   });
   await db.authToken.deleteMany({ where: { userId: user.id } });
   return { id: user.id, email };
+}
+
+// ───────── Browser-based first-run setup ─────────
+// For owners who cannot run `npm run setup:admin`. Gated by SETUP_TOKEN (a random secret set in the
+// deployment's environment, so only whoever controls the deployment can use it) and permanently
+// disabled the moment any administrator exists.
+
+export class SetupError extends Error {}
+
+const MIN_TOKEN_LENGTH = 24;
+
+export function setupEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return (env.SETUP_TOKEN?.trim().length ?? 0) >= MIN_TOKEN_LENGTH;
+}
+
+export function setupTokenMatches(given: string, env: Record<string, string | undefined> = process.env): boolean {
+  if (!setupEnabled(env)) return false;
+  const h = (s: string) => createHash("sha256").update(s).digest();
+  return timingSafeEqual(h(given.trim()), h(env.SETUP_TOKEN!.trim()));
+}
+
+export async function adminExists(): Promise<boolean> {
+  return (await db.user.count({ where: { role: "ADMIN" } })) > 0;
+}
+
+/**
+ * Creates the very first administrator. An advisory lock serialises concurrent attempts, so two
+ * simultaneous submissions can never both succeed.
+ */
+export async function createFirstAdmin(input: { name: string; email: string; password: string }) {
+  const data = adminInput.parse(input);
+  const email = normalizeEmail(data.email);
+  const passwordHash = await hashPassword(data.password); // slow by design: do it before taking the lock
+  const admin = await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(727001)`;
+    if ((await tx.user.count({ where: { role: "ADMIN" } })) > 0) throw new SetupError("Setup has already been completed.");
+    if (await tx.user.findUnique({ where: { email } })) throw new SetupError("A user with this email already exists.");
+    return tx.user.create({
+      data: { name: data.name, email, passwordHash, role: "ADMIN", status: "ACTIVE" },
+      select: { id: true, email: true, name: true },
+    });
+  });
+  await ensureBaseData();
+  return admin;
 }

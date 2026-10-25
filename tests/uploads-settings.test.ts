@@ -48,3 +48,19 @@ describe("restaurant settings", () => {
     expect(settingsInput.safeParse({ name: "X", logoUrl: "https://a.public.blob.vercel-storage.com/l.png" }).success).toBe(true);
   });
 });
+
+describe("settings row creation under concurrency", () => {
+  beforeEach(resetDb);
+  it("many simultaneous first requests on an empty database neither fail nor duplicate the row", async () => {
+    const { getOrCreateSettings } = await import("@/lib/services/settings");
+    const rows = await Promise.all(Array.from({ length: 12 }, () => getOrCreateSettings()));
+    expect(new Set(rows.map((r) => r.id)).size).toBe(1);
+    expect(await db.restaurantSettings.count()).toBe(1);
+  });
+  it("ensureBaseData can run concurrently (two setups at once) without errors", async () => {
+    const { ensureBaseData, STANDARD_ALLERGENS } = await import("@/lib/setup");
+    await Promise.all([ensureBaseData(), ensureBaseData(), ensureBaseData()]);
+    expect(await db.allergen.count()).toBe(STANDARD_ALLERGENS.length);
+    expect(await db.restaurantSettings.count()).toBe(1);
+  });
+});

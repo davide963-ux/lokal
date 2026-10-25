@@ -9,6 +9,7 @@ import { setPasswordWithToken } from "@/lib/account";
 import { fail, type ActionResult } from "@/lib/action";
 import { passwordSchema } from "@/lib/password";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { createFirstAdmin, SetupError, setupEnabled, setupTokenMatches } from "@/lib/setup";
 
 /** Only allow same-site relative redirects after login (blocks open-redirect via ?callbackUrl=). */
 function safeRedirectTarget(value: unknown): string {
@@ -58,5 +59,33 @@ export async function setPasswordAction(_prev: ActionResult | undefined, formDat
   }
   const result = await setPasswordWithToken(parsed.data.token, parsed.data.password);
   if (!result.ok) return fail(result.error);
+  redirect("/login?passwordSet=1");
+}
+
+const firstAdminSchema = z
+  .object({ name: z.string().trim().min(1, "Name is required").max(120), email: z.string().trim().email("Enter a valid email").max(254), password: passwordSchema, confirm: z.string() })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Passwords do not match" });
+
+/** One-time first-run setup (see lib/setup.ts). Token-gated, rate-limited, dead once an admin exists. */
+export async function setupAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  const limited = await rateLimit(`setup:${clientIp(await headers())}`, 6, 15 * 60);
+  if (!limited.ok) return fail("Too many attempts. Please wait a few minutes and try again.");
+  if (!setupEnabled()) return fail("Setup is not available.");
+  if (!setupTokenMatches(String(formData.get("token") ?? ""))) return fail("The setup token is incorrect.");
+
+  const parsed = firstAdminSchema.safeParse({
+    name: formData.get("name"), email: formData.get("email"), password: formData.get("password"), confirm: formData.get("confirm"),
+  });
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const i of parsed.error.issues) (fieldErrors[String(i.path[0] ?? "_")] ??= []).push(i.message);
+    return fail("Please fix the highlighted fields.", fieldErrors);
+  }
+  try {
+    await createFirstAdmin({ name: parsed.data.name, email: parsed.data.email, password: parsed.data.password });
+  } catch (e) {
+    if (e instanceof SetupError) return fail(e.message);
+    throw e;
+  }
   redirect("/login?passwordSet=1");
 }

@@ -1,7 +1,5 @@
 import { cache } from "react";
-import { db } from "@/lib/db";
+import { getOrCreateSettings } from "@/lib/services/settings";
 
-/** The one-and-only settings row. Created on first access so a fresh database never 500s. */
-export const getSettings = cache(async () => {
-  return db.restaurantSettings.upsert({ where: { singleton: true }, update: {}, create: { singleton: true } });
-});
+/** The one-and-only settings row (created on first access), cached per request. */
+export const getSettings = cache(getOrCreateSettings);

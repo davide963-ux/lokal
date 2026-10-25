@@ -13,6 +13,10 @@ describe("environment validation", () => {
   it("accepts a complete production configuration with no warnings", () => {
     expect(checkEnv(good, true)).toEqual({ errors: [], warnings: [] });
   });
+  it("rejects a present-but-short SETUP_TOKEN so a weak token can never be configured", () => {
+    expect(checkEnv({ ...good, SETUP_TOKEN: "short" }, true).errors[0]).toMatch(/SETUP_TOKEN/);
+    expect(checkEnv({ ...good, SETUP_TOKEN: "s".repeat(24) }, true).errors).toEqual([]);
+  });
   it("rejects missing/short/invalid critical values with actionable messages", () => {
     const r = checkEnv({ DATABASE_URL: "mysql://x", AUTH_SECRET: "short" }, true);
     expect(r.errors.join("\n")).toMatch(/DATABASE_URL must be a postgresql/);

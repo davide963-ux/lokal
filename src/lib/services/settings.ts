@@ -13,11 +13,21 @@ export const settingsInput = z.object({
   logoUrl: blobImageUrl,
 });
 
+/**
+ * Returns the single settings row, creating it if missing. Safe under concurrency: Prisma's upsert is
+ * not atomic, so parallel first requests (or parallel build workers) on an empty database would collide
+ * on the unique `singleton` column. INSERT ... ON CONFLICT DO NOTHING (skipDuplicates) cannot.
+ */
+export async function getOrCreateSettings() {
+  // findFirst, not findUnique: Prisma batches concurrent findUnique calls into an `in` filter, which is invalid for a Boolean column.
+  const existing = await db.restaurantSettings.findFirst({ where: { singleton: true } });
+  if (existing) return existing;
+  await db.restaurantSettings.createMany({ data: [{ singleton: true }], skipDuplicates: true });
+  return db.restaurantSettings.findFirstOrThrow({ where: { singleton: true } });
+}
+
 export async function updateSettings(raw: z.input<typeof settingsInput>) {
   const input = settingsInput.parse(raw);
-  return db.restaurantSettings.upsert({
-    where: { singleton: true },
-    update: input,
-    create: { singleton: true, ...input },
-  });
+  await getOrCreateSettings();
+  return db.restaurantSettings.update({ where: { singleton: true }, data: input });
 }

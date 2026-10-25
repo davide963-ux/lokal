@@ -62,7 +62,19 @@ the function logs that names the variable; weaker problems (e.g. `AUTH_URL` poin
 
 ## 4. Create the first manager (once)
 
-There is no public registration and no default password. From a checkout of the repository on your machine:
+There is no public registration and no default password. Choose one of two ways.
+
+### Option A: in the browser (no command line)
+
+1. In Vercel add an environment variable `SETUP_TOKEN` with a long random value (24+ characters; e.g. `openssl rand -base64 32`) and **redeploy**.
+2. Open `https://<your-site>/setup`, enter the token, your name, email and a password.
+3. You land on the sign-in page. The `/setup` page now returns 404 for good (it disappears as soon as any manager exists), and you can delete `SETUP_TOKEN`.
+
+Without `SETUP_TOKEN` the page does not exist, so nobody can claim the manager account by finding the URL first. Attempts are rate-limited and the token is compared in constant time.
+
+### Option B: command line
+
+From a checkout of the repository on your machine:
 
 ```bash
 npm ci
