@@ -1,0 +1,393 @@
+// Single-restaurant staff training platform.
+// One deployment == one restaurant == one database. There is deliberately no
+// tenant / organization / restaurant foreign key anywhere in this schema.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Enums ─────────────────────────
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+enum UserStatus {
+  INVITED // account created, password not yet set
+  ACTIVE
+  INACTIVE // deactivated: cannot sign in, history preserved
+}
+
+enum DishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AllergenPresence {
+  CONTAINS
+  MAY_CONTAIN // cross-contact risk
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
+enum TokenPurpose {
+  INVITE
+  PASSWORD_RESET
+}
+
+enum NotificationType {
+  DISH_PUBLISHED
+  DISH_UPDATED
+  QUIZ_AVAILABLE
+  RETRAINING_REQUIRED
+  QUIZ_FAILED
+  TRAINING_COMPLETED
+  RETRAINING_PENDING
+}
+
+// ───────────────────────── Users & auth ─────────────────────────
+
+model User {
+  id             String     @id @default(uuid()) @db.Uuid
+  name           String
+  email          String     @unique // always stored lower-cased
+  passwordHash   String? // null while status = INVITED
+  role           Role       @default(EMPLOYEE)
+  status         UserStatus @default(INVITED)
+  jobTitle       String?
+  phone          String?
+  lastLoginAt    DateTime?
+  // Bumped on password change / deactivation so existing JWT sessions die.
+  sessionVersion Int        @default(0)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  tokens        AuthToken[]
+  studyProgress DishStudyProgress[]
+  quizAttempts  QuizAttempt[]
+  notifications Notification[]
+
+  @@index([role, status])
+}
+
+// Single-use, hashed, expiring tokens for invitations and password resets.
+model AuthToken {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @db.Uuid
+  purpose   TokenPurpose
+  tokenHash String       @unique // sha256 of the raw token; raw token is never stored
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+}
+
+// Fixed-window counters for serverless-safe rate limiting.
+model RateLimit {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
+}
+
+// ───────────────────────── Restaurant settings (singleton) ─────────────────────────
+
+model RestaurantSettings {
+  id                String   @id @default(uuid()) @db.Uuid
+  // `singleton` is unique + constrained to TRUE (see migration), so at most one row can exist.
+  singleton         Boolean  @unique @default(true)
+  name              String   @default("My Restaurant")
+  logoUrl           String?
+  description       String?
+  address           String?
+  contactEmail      String?
+  contactPhone      String?
+  preferredLanguage String   @default("en")
+  updatedAt         DateTime @updatedAt
+}
+
+// ───────────────────────── Menu ─────────────────────────
+
+model Category {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @unique
+  description String?
+  sortOrder   Int     @default(0)
+
+  dishes Dish[]
+
+  @@index([sortOrder])
+}
+
+model Dish {
+  id               String     @id @default(uuid()) @db.Uuid
+  categoryId       String     @db.Uuid
+  name             String
+  imageUrl         String?
+  shortDescription String?
+  description      String?
+  price            Decimal?   @db.Decimal(10, 2)
+  isAvailable      Boolean    @default(true) // sold-out toggle, independent of publication status
+  status           DishStatus @default(DRAFT)
+
+  // Allergens / dietary — must be verified by a manager before publishing.
+  dietaryTags           String[]  @default([])
+  crossContactWarnings  String?
+  allergenNotes         String? // manager-approved free text
+  allergensVerifiedAt   DateTime?
+  allergensVerifiedById String?   @db.Uuid
+
+  // Preparation
+  cookingMethod           String?
+  preparationInstructions String?
+  prepTimeMinutes         Int?
+  servingTemperature      String?
+  garnishes               String?
+  presentationDetails     String?
+
+  // Customer service
+  waiterDescription   String? // how the waiter should describe the dish
+  recommendedPairings String?
+  guestInformation    String? // important things to mention to guests
+  managerNotes        String?
+
+  // Highest DishRevision.version created for this dish.
+  currentVersion Int       @default(0)
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  category      Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  ingredients   DishIngredient[]
+  allergens     DishAllergen[]
+  revisions     DishRevision[]
+  quiz          Quiz?
+  studyProgress DishStudyProgress[]
+
+  @@index([status, categoryId])
+  @@index([updatedAt])
+}
+
+model Ingredient {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @unique
+  description String?
+
+  dishes DishIngredient[]
+}
+
+model DishIngredient {
+  id                String  @id @default(uuid()) @db.Uuid
+  dishId            String  @db.Uuid
+  ingredientId      String  @db.Uuid
+  quantity          String?
+  isOptional        Boolean @default(false) // false => main ingredient
+  isRemovable       Boolean @default(false)
+  substitutionNotes String?
+  sortOrder         Int     @default(0)
+
+  dish       Dish       @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@unique([dishId, ingredientId])
+  @@index([ingredientId])
+}
+
+model Allergen {
+  id        String @id @default(uuid()) @db.Uuid
+  name      String @unique
+  sortOrder Int    @default(0)
+
+  dishes DishAllergen[]
+}
+
+model DishAllergen {
+  dishId     String           @db.Uuid
+  allergenId String           @db.Uuid
+  presence   AllergenPresence @default(CONTAINS)
+
+  dish     Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  allergen Allergen @relation(fields: [allergenId], references: [id], onDelete: Restrict)
+
+  @@id([dishId, allergenId])
+  @@index([allergenId])
+}
+
+// Immutable snapshot of everything an employee sees on the training page.
+model DishRevision {
+  id                 String   @id @default(uuid()) @db.Uuid
+  dishId             String   @db.Uuid
+  version            Int
+  snapshot           Json
+  changeSummary      String?
+  requiresRetraining Boolean  @default(false)
+  createdById        String?  @db.Uuid
+  createdAt          DateTime @default(now())
+
+  dish          Dish                @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  studyProgress DishStudyProgress[]
+  attempts      QuizAttempt[]
+
+  @@unique([dishId, version])
+}
+
+model DishStudyProgress {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  dishId         String   @db.Uuid
+  dishRevisionId String   @db.Uuid
+  studiedAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dish         Dish         @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  dishRevision DishRevision @relation(fields: [dishRevisionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dishRevisionId])
+  @@index([userId, dishId])
+}
+
+// ───────────────────────── Quizzes ─────────────────────────
+
+// One quiz per dish. Questions below are the editable *working copy*;
+// grading always uses the immutable QuizRevision snapshot an attempt was issued against.
+model Quiz {
+  id                 String     @id @default(uuid()) @db.Uuid
+  dishId             String     @unique @db.Uuid
+  title              String
+  status             QuizStatus @default(DRAFT)
+  passingScore       Int        @default(80) // percent, 1..100
+  allowRetries       Boolean    @default(true)
+  questionCount      Int? // draw N questions from the pool; null = all
+  randomizeQuestions Boolean    @default(false)
+  randomizeAnswers   Boolean    @default(false)
+  showCorrectAnswers Boolean    @default(true)
+  currentVersion     Int        @default(0)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  dish      Dish           @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  revisions QuizRevision[]
+  attempts  QuizAttempt[]
+}
+
+model QuizQuestion {
+  id           String       @id @default(uuid()) @db.Uuid
+  quizId       String       @db.Uuid
+  questionText String
+  questionType QuestionType
+  explanation  String?
+  sortOrder    Int          @default(0)
+
+  quiz    Quiz               @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options QuizAnswerOption[]
+
+  @@index([quizId, sortOrder])
+}
+
+model QuizAnswerOption {
+  id         String  @id @default(uuid()) @db.Uuid
+  questionId String  @db.Uuid
+  answerText String
+  isCorrect  Boolean @default(false)
+  sortOrder  Int     @default(0)
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+// Immutable, published snapshot of settings + questions + correct answers.
+model QuizRevision {
+  id               String   @id @default(uuid()) @db.Uuid
+  quizId           String   @db.Uuid
+  version          Int
+  questionSnapshot Json
+  createdAt        DateTime @default(now())
+
+  quiz     Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  attempts QuizAttempt[]
+
+  @@unique([quizId, version])
+}
+
+model QuizAttempt {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @db.Uuid
+  quizId          String        @db.Uuid
+  quizRevisionId  String        @db.Uuid
+  dishRevisionId  String        @db.Uuid // dish content the employee had acknowledged
+  status          AttemptStatus @default(IN_PROGRESS)
+  // Server-issued question/option order (ids only, never answers) — locks the attempt shape.
+  issuedQuestions Json
+  totalQuestions  Int
+  correctCount    Int?
+  score           Int? // percent 0..100
+  passed          Boolean?
+  passingScore    Int // threshold in force when the attempt was issued
+  startedAt       DateTime      @default(now())
+  submittedAt     DateTime?
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz         Quiz                @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quizRevision QuizRevision        @relation(fields: [quizRevisionId], references: [id], onDelete: Restrict)
+  dishRevision DishRevision        @relation(fields: [dishRevisionId], references: [id], onDelete: Restrict)
+  answers      QuizAttemptAnswer[]
+
+  @@index([userId, quizId, status])
+  @@index([submittedAt])
+}
+
+model QuizAttemptAnswer {
+  id                String  @id @default(uuid()) @db.Uuid
+  attemptId         String  @db.Uuid
+  // Ids refer to entries inside the QuizRevision snapshot (not FKs, so edits never break history).
+  questionRef       String
+  questionText      String
+  selectedOptionRef String?
+  selectedAnswer    String?
+  isCorrect         Boolean
+
+  attempt QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionRef])
+}
+
+// ───────────────────────── Notifications ─────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+}
