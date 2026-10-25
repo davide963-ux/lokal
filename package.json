@@ -18,7 +18,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "setup:admin": "tsx scripts/create-admin.ts",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "node scripts/check-build-env.mjs && prisma generate && prisma migrate deploy && next build",
     "postinstall": "prisma generate",
     "admin:reset-password": "tsx scripts/reset-admin-password.ts",
     "audit:pages": "node scripts/audit-pages.cjs"
