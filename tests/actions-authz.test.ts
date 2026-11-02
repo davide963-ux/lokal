@@ -45,7 +45,7 @@ describe("every admin server action enforces the ADMIN role on the server", () =
   const names = Object.keys(ADMIN_ONLY);
 
   it("covers a meaningful number of actions", () => {
-    expect(names.length).toBeGreaterThanOrEqual(31);
+    expect(names.length).toBeGreaterThanOrEqual(32);
   });
 
   it("anonymous callers are refused and nothing is written", async () => {

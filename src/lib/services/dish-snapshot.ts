@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Tx } from "@/lib/db";
+import type { Db, Tx } from "@/lib/db";
 
 /** Everything an employee sees on a dish training page, frozen at a point in time. */
 export type DishSnapshot = {
@@ -27,7 +27,7 @@ export type DishSnapshot = {
   managerNotes: string | null;
 };
 
-export async function buildDishSnapshot(tx: Tx, dishId: string): Promise<DishSnapshot> {
+export async function buildDishSnapshot(tx: Tx | Db, dishId: string): Promise<DishSnapshot> {
   const d = await tx.dish.findUniqueOrThrow({
     where: { id: dishId },
     include: {
