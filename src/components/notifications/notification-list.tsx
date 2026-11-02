@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BookOpen, CheckCheck, RefreshCw, Rocket, ShieldAlert, Trophy, XCircle } from "lucide-react";
+import { Bell, BookOpen, CheckCheck, RefreshCw, Rocket, ShieldAlert, Sparkles, Trophy, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { markAllNotificationsReadAction, markNotificationReadAction } from "@/app/notification-actions";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ export type NotificationItem = { id: string; type: string; title: string; messag
 
 const ICON: Record<string, typeof Bell> = {
   DISH_PUBLISHED: BookOpen, DISH_UPDATED: RefreshCw, QUIZ_AVAILABLE: Rocket, RETRAINING_REQUIRED: ShieldAlert,
-  QUIZ_FAILED: XCircle, TRAINING_COMPLETED: Trophy, RETRAINING_PENDING: ShieldAlert,
+  QUIZ_FAILED: XCircle, QUIZ_NEEDS_REVIEW: Sparkles, TRAINING_COMPLETED: Trophy, RETRAINING_PENDING: ShieldAlert,
 };
 
 function ago(iso: string) {

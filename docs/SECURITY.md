@@ -33,12 +33,15 @@ and which automated test covers it. If a control has no test listed, treat it as
 | Browser hardening | CSP (self + project Blob for images, no framing, no plugins, `form-action 'self'`), HSTS, `nosniff`, `X-Frame-Options: DENY`, restrictive Permissions-Policy, `noindex` | `next.config.ts` | audit crawl (no CSP violations) |
 | Configuration | Startup validation of `DATABASE_URL`, `AUTH_SECRET` (≥32 chars); production refuses to start on bad critical config | `lib/env.ts`, `instrumentation.ts` | `hardening.test.ts` |
 | Secrets | Only environment variables; `.env*` git-ignored; `.env.example` has no values | `.gitignore` | CI secret-free |
+| Generated quizzes | Rule-based (no model), answers copied from verified dish fields; hand-edited quizzes are never overwritten; stale generated quizzes are taken offline rather than left contradicting the recipe; generation failures cannot fail a save | `lib/quiz/generator.ts`, `services/auto-quiz.ts` | `quiz-generator.test.ts`, `auto-quiz.test.ts` |
 | First-run setup | `/setup` exists only when `SETUP_TOKEN` (24+ chars) is configured and no manager exists; constant-time token check, per-IP rate limit, advisory lock so concurrent submissions create exactly one manager | `lib/setup.ts`, `app/(auth)/setup` | `first-run-setup.test.ts` |
 | Maintenance endpoint | Closed unless `CRON_SECRET` is set; constant-time bearer comparison | `api/cron/cleanup` | `hardening.test.ts` |
 | Dependencies | `npm audit` clean (nested `zod` pinned through `overrides`); CI fails on high severity | `package.json`, `.github/workflows/ci.yml` | CI |
 | Data integrity | FK constraints, uniqueness, check constraints (settings singleton, score ranges, attempt consistency), transactions for multi-step writes | `prisma/migrations` | all DB tests |
 
 ## Known limitations (deliberate or accepted for v1)
+
+- **Generated "not in this dish" questions assume the recorded lists are complete.** A wrong option (an ingredient, allergen or dietary label) is one the dish is *not recorded* as having. That is why allergen data must be manager-verified before publishing, and why pantry staples are excluded. Incomplete ingredient lists can still make a distractor technically true; managers can edit any generated question.
 
 - **No MFA and no email.** Invite/reset links are handed over by the manager (WhatsApp/SMS). Treat them like a password until used; they are single-use and expire. Manager password recovery needs operator database access (`npm run admin:reset-password`).
 - **CSP allows inline scripts/styles** (`'unsafe-inline'`), because Next.js bootstrap and the UI library need them. A nonce-based CSP would be stricter but forces dynamic rendering everywhere.

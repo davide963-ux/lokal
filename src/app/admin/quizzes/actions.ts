@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { assertAdmin } from "@/lib/authz";
 import { runAction, type ActionResult } from "@/lib/action";
+import { generateQuizNow } from "@/lib/services/auto-quiz";
 import {
   deleteQuestion, getOrCreateQuiz, moveQuestion, publishQuiz, saveQuestion, unpublishQuiz, updateQuizSettings,
 } from "@/lib/services/quizzes";
@@ -68,5 +69,18 @@ export async function unpublishQuizAction(quizId: string): Promise<ActionResult>
     await unpublishQuiz(uuid.parse(quizId));
     refresh();
     return { ok: true, message: "Quiz unpublished" };
+  });
+}
+
+export async function generateQuizAction(dishId: string): Promise<ActionResult<{ questions: number; changed: boolean }>> {
+  return runAction(async () => {
+    await assertAdmin();
+    const res = await generateQuizNow(uuid.parse(dishId));
+    refresh();
+    return {
+      ok: true,
+      data: { questions: res.questions, changed: res.changed },
+      message: !res.changed ? "Already up to date with the dish" : res.published ? `Regenerated ${res.questions} questions and published them` : `Generated ${res.questions} questions. Review them, then publish.`,
+    };
   });
 }

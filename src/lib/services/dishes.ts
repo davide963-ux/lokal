@@ -2,6 +2,7 @@ import { db, type Tx } from "@/lib/db";
 import { DomainError } from "@/lib/errors";
 import { dishInput, type DishFormInput } from "@/lib/validation/dish";
 import { buildDishSnapshot, describeChanges, snapshotHash, type DishSnapshot } from "./dish-snapshot";
+import { syncQuizSafely } from "./auto-quiz";
 import { notifyAdmins, notifyUsers } from "./notifications";
 
 export { DomainError };
@@ -156,7 +157,7 @@ async function recordRevision(
 
 export async function updateDish(adminId: string, dishId: string, raw: DishFormInput): Promise<SaveDishResult> {
   const input = dishInput.parse(raw);
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const dish = await tx.dish.findUnique({ where: { id: dishId } });
     if (!dish) throw new DomainError("Dish not found.");
     if (dish.status === "ARCHIVED") throw new DomainError("Restore this dish before editing it.");
@@ -191,10 +192,14 @@ export async function updateDish(adminId: string, dishId: string, raw: DishFormI
     if (rev) await notifyRevision(tx, dishId, input.name, rev.version, rev.requiresRetraining);
     return { id: dishId, revision: rev && { version: rev.version, requiresRetraining: rev.requiresRetraining } };
   });
+  // A new dish version may contradict generated questions: re-sync after the save has committed.
+  if (result.revision) await syncQuizSafely(dishId);
+  return result;
 }
 
 export async function publishDish(adminId: string, dishId: string): Promise<SaveDishResult> {
-  return db.$transaction(async (tx) => {
+  let firstPublish = false;
+  const result = await db.$transaction(async (tx) => {
     const dish = await tx.dish.findUnique({ where: { id: dishId } });
     if (!dish) throw new DomainError("Dish not found.");
     if (dish.status === "PUBLISHED") throw new DomainError("This dish is already published.");
@@ -202,7 +207,7 @@ export async function publishDish(adminId: string, dishId: string): Promise<Save
     if (!dish.allergensVerifiedAt) {
       throw new DomainError("Verify the allergen and dietary information before publishing. Employees rely on it.");
     }
-    const firstPublish = !dish.publishedAt;
+    firstPublish = !dish.publishedAt;
     await tx.dish.update({
       where: { id: dishId },
       data: { status: "PUBLISHED", publishedAt: dish.publishedAt ?? new Date() },
@@ -220,6 +225,9 @@ export async function publishDish(adminId: string, dishId: string): Promise<Save
     }
     return { id: dishId, revision: rev && { version: rev.version, requiresRetraining: rev.requiresRetraining } };
   });
+  // First publish → create the quiz; republish with changes → keep it in step with the recipe.
+  if (firstPublish || result.revision) await syncQuizSafely(dishId);
+  return result;
 }
 
 export async function unpublishDish(dishId: string) {

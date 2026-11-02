@@ -50,6 +50,31 @@ upload button explains that storage is not configured. No files are ever written
 
 Tests: create the database once (`createdb lokal_test`); migrations are applied automatically by the test runner.
 
+## Automatic quizzes
+
+Managers don't have to write quizzes. When a dish is **published**, a quiz is generated and published automatically
+from the dish's own recorded, manager-verified data (ingredients, allergens, dietary labels, cooking method, prep time,
+serving temperature, garnish). Employees are notified and can take it right after studying the dish.
+
+```mermaid
+flowchart TD
+    P[Manager publishes dish, or saves a change to a live dish] --> D{Dish has enough recorded detail?<br/>at least 3 questions possible}
+    D -- no, first publish --> N[No quiz yet. Add details or write one manually]
+    D -- yes --> Q{Does the dish already have a quiz?}
+    Q -- no --> G[Generate + publish quiz v1<br/>notify employees and manager]
+    Q -- yes, auto-generated --> R[Regenerate from the new recipe]
+    R --> C{Content changed?}
+    C -- no --> U[Nothing to do]
+    C -- yes --> V[Publish new quiz version<br/>old attempts keep their version]
+    Q -- yes, hand-edited --> M[Never overwritten:<br/>manager is asked to review]
+    R -. update leaves too little data .-> O[Quiz taken offline + manager notified]
+```
+
+- **No AI model.** Questions come from fixed rules, so every correct answer is copied from a recorded field. A generated question can only be wrong if the dish data is wrong. Wrong options are drawn from the restaurant's other data (other ingredients, the allergen list, other dishes' cooking methods…). Output is seeded by the dish, so unchanged data yields identical questions.
+- **Allergen questions only use the verified record** and always remind staff to check with the kitchen. Pantry staples (salt, oil, garlic…) are never used as wrong options, since they are often left off ingredient lists.
+- **Hand edits win.** Editing any question switches that quiz to *manual*. It is then never regenerated, and the manager is notified when the dish changes. The **Generate / Regenerate from dish** button on the quiz page returns it to automatic mode.
+- A failure in quiz generation never blocks publishing a dish.
+
 ## Documentation
 
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): step-by-step Vercel + PostgreSQL runbook, env vars, go-live checklist, operations, troubleshooting
